@@ -38,9 +38,41 @@ import asyncio  # 异步I/O操作库
 import random  #用于模拟延迟输入
 from re import T  # 随机数生成库
 import cv2  # OpenCV库，用于图像处理
+import inspect
+import logging
+from datetime import datetime
+ 
+# 获取当前时间并格式化为日志文件名的一部分
+now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+log_filename = f"{now}.log"
 
 
+# 创建一个handler，用于将日志输出到控制台
+console_handler = logging.StreamHandler()
+# 配置日志
+logging.basicConfig(filename=log_filename,
+                    filemode='w',
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    level=logging.INFO)
+ 
+# 创建一个日志器
+logger = logging.getLogger(__name__)
 
+formatter = logging.Formatter('%(asctime)s- %(name)s  - %(levelname)s - %(message)s')
+# 将formatter添加到handler
+console_handler.setFormatter(formatter )
+# 将console_handler添加到logger
+logger.addHandler(console_handler)
+# 测试日志输出
+#logger.debug('这是一个 debug 级别的日志信息')
+#logger.info('这是一个 info 级别的日志信息')
+#logger.warning('这是一个 warning 级别的日志信息')
+#logger.error('这是一个 error 级别的日志信息')
+#logger.critical('这是一个 critical 级别的日志信息')
+
+def get_current_function_name():
+    return inspect.currentframe().f_back.f_code.co_name 
 
 async def print_message(message):     #初始化异步print
     print(message)
@@ -59,7 +91,7 @@ async def ifconfigfile():                           #判断有没有配置文件
 ]
         with open(configfile, 'w', encoding='utf-8') as file:     #打开配置文件
             file.writelines(configdata)       #写入configdata的内容到配置文件
-            print('已在当前脚本目录下生成了配置文件，请修改后再运行')
+            logger.info('已在当前脚本目录下生成了配置文件，请修改后再运行')
             await asyncio.sleep(10)  # 等待10秒，等待
             raise SystemExit
 
@@ -79,8 +111,8 @@ async def download_file(url, file_path):        #初始化浏览器下载
                     file.write(chunk)
                     downloaded_size += len(chunk)
                     progress = (downloaded_size / file_size) * 100
-                    print(f'已下载{progress:.2f}%...', end='\r')
-    print('下载完成，进行解压安装....')
+                    logger.info(f'已下载{progress:.2f}%...', end='\r')
+    logger.info('下载完成，进行解压安装....')
 
 async def init_web_display():                           #初始化浏览器显示配置
     global WebDisplay                             #设置为全局变量
@@ -90,12 +122,12 @@ async def init_web_display():                           #初始化浏览器显�
             for line in file:
                 if 'Displaylogin=1' in line:                             #如果配置文件有Displaylogin=1这个东西
                     WebDisplay = False                             #就变更成显示登录操作
-                    print('当前模式：显示web登录图形化界面')
+                    logger.info('当前模式：显示web登录图形化界面')
                     break
         if WebDisplay:
-            print("当前配置不显示web登录图形化界面，若要取消静默登陆，在配置文件中设置参数Displaylogin=1")
+            logger.info("静默登陆")
     except FileNotFoundError:
-        print("读取配置文件时出错")
+        logger.info("读取配置文件时出错")
 
 async def init_chrome():        #判断chrome是否存在，不存在则下载，仅针对windows
     if platform.system() == 'Windows':
@@ -105,9 +137,9 @@ async def init_chrome():        #判断chrome是否存在，不存在则下载�
         if os.path.exists(chrome_exe):
             return chrome_exe
         else:
-            print('貌似第一次使用，未找到chrome，正在下载chrome浏览器....')
+            logger.info('貌似第一次使用，未找到chrome，正在下载chrome浏览器....')
 
-            chromeurl = 'http://npm.taobao.org/mirrors/chromium-browser-snapshots/Win_x64/588429/chrome-win32.zip'        #定义下载地址
+            chromeurl = 'https://github.com/greenwave1987/chrome-win/releases/download/1.1.1/chrome-win.zip'        #定义下载地址
             target_file = 'chrome-win.zip'                                                          #定义下载文件名
             await download_file(chromeurl, target_file)           #下载
             with zipfile.ZipFile(target_file, 'r') as zip_ref:
@@ -117,7 +149,7 @@ async def init_chrome():        #判断chrome是否存在，不存在则下载�
                 source_item = os.path.join(chmod_dir, item)
                 destination_item = os.path.join(chrome_dir, item)
                 os.rename(source_item, destination_item)
-            print('解压安装完成')
+            logger.info('解压安装完成')
             await asyncio.sleep(1)  # 等待1秒，等待
             return chrome_exe
 
@@ -127,8 +159,8 @@ async def init_chrome():        #判断chrome是否存在，不存在则下载�
         if os.path.isfile(chrome_path):
             return chrome_path
         else:
-            print('貌似第一次使用，未找到chrome，正在下载chrome浏览器....')
-            print('文件位于github，请耐心等待，如遇到网络问题可到项目地址手动下载')
+            logger.info('貌似第一次使用，未找到chrome，正在下载chrome浏览器....')
+            logger.info('文件位于github，请耐心等待，如遇到网络问题可到项目地址手动下载')
             download_url = "https://github.com/dsmggm/svjdck/releases/download/jdck/chrome-linux.zip"
             if not os.path.exists(download_path):       #如果没有路径就创建路径
                 os.makedirs(download_path, exist_ok=True)  # 创建下载路径
@@ -162,23 +194,23 @@ async def initql():        #初始化青龙并获取青龙的token
 
         if not qlip or not client_id or not client_secret:         #如果没有三个参数变量没有值，就报下面的错误，单个检测报错
             if not qlip:
-                print('青龙IP配置出错，请确认配置文件')
+                logger.info('IP配置出错，请确认配置文件')
                 await asyncio.sleep(10)  # 等待10秒，等待
             if not client_id:
-                print('青龙client_id配置出错，请确认配置文件')
+                logger.info('client_id配置出错，请确认配置文件')
                 await asyncio.sleep(10)  # 等待10秒，等待
             if not client_secret:
-                print('青龙client_secret配置出错，请确认配置文件')
+                logger.info('client_secret配置出错，请确认配置文件')
                 await asyncio.sleep(10)  # 等待10秒，等待
             raise SystemExit
 
         async with aiohttp.ClientSession() as session:                #获取青龙的token
             async with session.get(f"{qlip}/open/auth/token?client_id={client_id}&client_secret={client_secret}") as response:
                 dicts = await response.json()
-                print('已连接青龙容器...')
+                logger.info('已连接服务器...')
             return dicts['data']['token']
     except Exception as e:
-        print(f"连接青龙发生异常，请确认配置文件：{e}")
+        logger.info(f"连接发生异常，请确认配置文件：{e}")
         await asyncio.sleep(10)  # 等待10秒，等待
         raise SystemExit
 
@@ -197,9 +229,9 @@ async def qlenvs():   #获取青龙全部jdck变量
                     proxy_server = next((env['value'].strip().split('\n') for env in rjson['data'] if env.get('name') == 'AutoJDCK_DP'), None)      #获取代理变量
                     return jd_cookie_data
                 else:
-                    print(f"获取环境变量失败：{rjson['message']}")
+                    logger.info(f"获取环境变量失败：{rjson['message']}")
     except Exception as e:
-        print(f"获取环境变量失败：{str(e)}")
+        logger.info(f"获取环境变量失败：{str(e)}")
 
 
 
@@ -221,11 +253,11 @@ notify.sendNotify(`JDCK自动登录失败通知`, message)
             async with session.put(url, headers={'Authorization': 'Bearer ' + qltoken}, json=data) as response:            # 更新变量的api
                 rjson = await response.json()
                 if rjson['code'] == 200:
-                    print('推送验证通知')
+                    logger.info('推送验证通知')
                 else:
-                    print('推送验证通知失败,请检查青龙应用《脚本管理》权限')
+                    logger.info('推送验证通知失败,请检查青龙应用《脚本管理》权限')
         except Exception as e:
-            print('推送验证通知失败,请检查青龙连接状态和应用设置《脚本管理》权限')
+            logger.info('推送验证通知失败,请检查青龙连接状态和应用设置《脚本管理》权限')
 
 
 
@@ -259,18 +291,18 @@ async def get_user_choice():            #短信验证选择
                 timeout=120
             )
             if choice not in ['1', '2']:
-                print("无效输入，请只输入1或2，请重新输入：  ")
+                logger.info("无效输入，请只输入1或2，请重新输入：  ")
         except asyncio.TimeoutError:
-            print("\n输入超时，跳过登陆")
+            logger.info("\n输入超时，跳过登陆")
             choice = '2'
             break
         except Exception as e:
-            print("发生错误：", e)
+            logger.info("发生错误：", e)
     return choice
 
 
 async def validate_logon(usernum, passwd, notes, chromium_path):                                         #登录操作
-    print(f"正在登录 {notes} {usernum} 的账号")
+    logger.info(f"正在登录 {notes} {usernum} 的账号")
     browser = await launch({
         'executablePath': chromium_path,        #定义chromium路径
         'headless': WebDisplay,  # 设置为非无头模式，即可视化浏览器界面
@@ -300,18 +332,18 @@ async def validate_logon(usernum, passwd, notes, chromium_path):                
                     try:
                         choice = await get_user_choice()            #调用选择函数
                         if choice == '1':
-                            print("正在发送短信验证")
+                            logger.info("正在发送短信验证")
                             await duanxin(page, usernum, passwd)    #调用短信登录函数
                             break
                         elif choice == '2':
                             await browser.close()  #关闭浏览器
-                            print("不进行验证，跳过此账户登录")
+                            logger.info("不进行验证，跳过此账户登录")
                             should_break = True  
                             break
                         else:
-                            print("无效的选择")
+                            logger.info("无效的选择")
                     except asyncio.TimeoutError:
-                        print("输入超时，跳过登陆")
+                        logger.info("输入超时，跳过登陆")
                         should_break = True
                         break
         except Exception as e:
@@ -329,13 +361,13 @@ async def validate_logon(usernum, passwd, notes, chromium_path):                
                 for el in element:
                     text_content = await page.evaluate('(el) => el.textContent', el)
                     if "您的账号存在风险，为了您的账号安全请到京东商城App登录" in text_content:
-                        print("账号存在风险，请到京东App登录，正在推送通知")
+                        logger.info("账号存在风险，请到京东App登录，正在推送通知")
                         text = f"{notes} {usernum} 存在风险，请到京东App登录"
                         await push_message(qltoken, text)          #推送需要验证登陆通知
                         should_break = True  
                         break
                     elif "账号或密码不正确" in text_content:
-                        print("账号或密码不正确,正在推送通知")
+                        logger.info("账号或密码不正确,正在推送通知")
                         text = f"{notes} {usernum} 账号或密码不正确" 
                         await push_message(qltoken, text)
                         should_break = True  
@@ -346,7 +378,7 @@ async def validate_logon(usernum, passwd, notes, chromium_path):                
         try:
             if await page.xpath('//*[@id="captcha_modal"]/div/div[3]/button'):             #点击图片验证，无法过    
                 await page.waitFor(3000)  # 等待3秒
-                print("验证出错，正在重试……")
+                logger.info("验证出错，正在重试……")
                 await page.reload()                  #刷新浏览器
                 await typeuser(page, usernum, passwd)        #进行账号密码登录
         except Exception as e:
@@ -374,7 +406,7 @@ async def SubmitCK(page, notes):  #提交ck
             pt_key = cookie['value']                             #把值设置到变量pt_key
         elif cookie['name'] == 'pt_pin':                             #找到pt_pin的值
             pt_pin = cookie['value']                             #把值设置到变量pt_pin
-    print('{} 登录成功 pt_key={};pt_pin={};'.format(notes, pt_key, pt_pin))    # 打印 pt_key 和 pt_pin 值
+    logger.info('{} 登录成功 pt_key={};pt_pin={};'.format(notes, pt_key, pt_pin))    # 打印 pt_key 和 pt_pin 值
     #with open('jdck.log', 'a+', encoding='utf-8') as file:    #打开文件
         #content = '{}   {}   pt_key={};pt_pin={};\n'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), notes, pt_key, pt_pin)   # 构造要写入文件的字符串
         #file.write(content)  # 写入文件
@@ -402,13 +434,13 @@ async def SubmitCK(page, notes):  #提交ck
                         async with session.put(url2, headers={'Authorization': 'Bearer ' + qltoken}, json=data2) as response:            #启用变量的api
                             rjson2 = await response.json()
                             if rjson2['code'] == 200:
-                                print(f"更新{notes}环境变量成功")
+                                logger.info(f"更新{notes}环境变量成功")
                                 return True
                             else:
-                                print(f"启用{notes}环境变量失败：{rjson['message']}")
+                                logger.info(f"启用{notes}环境变量失败：{rjson['message']}")
                                 return False
                     else:
-                        print(f"更新{notes}环境变量失败：{rjson['message']}")
+                        logger.info(f"更新{notes}环境变量失败：{rjson['message']}")
                         return False
     if not found_ddhhs:          #如果没找到pt_pin，执行下面的新建ck，以下同上，只是新建不是更新
         data = [
@@ -423,10 +455,10 @@ async def SubmitCK(page, notes):  #提交ck
             async with session.post(url, headers={'Authorization': 'Bearer ' + qltoken}, json=data) as response:
                 rjson = await response.json()
                 if rjson['code'] == 200:
-                    print(f"新建{notes}环境变量成功")
+                    logger.info(f"新建{notes}环境变量成功")
                     return True
                 else:
-                    print(f"新建{notes}环境变量失败：{rjson['message']}")
+                    logger.info(f"新建{notes}环境变量失败：{rjson['message']}")
                     return False
 
 
@@ -437,7 +469,7 @@ async def get_verification_code():  # 交互输入验证码
         if len(code) == 6 and code.isdigit():
             break
         else:
-            print("请输入6位数字作为验证码，请重新输入。")
+            logger.info("请输入6位数字作为验证码，请重新输入。")
     return code
 async def duanxin(page,usernum, passwd):   #短信验证函数
         await page.waitForXPath('//*[@id="app"]/div/div[2]/div[2]/span/a')   #等手机短信认证元素  //*[@id="app"]/div/div[2]
@@ -454,7 +486,7 @@ async def duanxin(page,usernum, passwd):   #短信验证函数
                 await verification(page)  #过滑块
             if await page.xpath('//*[@id="captcha_modal"]/div/div[3]/button'):             #点击图片验证，无法过    
                 await page.waitFor(5000)  # 等待3秒
-                print("验证出错，正在重试……")
+                logger.info("验证出错，正在重试……")
                 await page.reload()                  #刷新浏览器
                 await typeuser(page, usernum, passwd)        #进行账号密码登录
         except Exception as e:
@@ -521,37 +553,17 @@ async def init_proxy_server():                                             #初�
         argszhi = '--no-sandbox', '--disable-setuid-sandbox'
         return argszhi
 
-async def get_latest_version():                                             #获取版本号函数
-    url = f"https://api.github.com/repos/dsmggm/svjdck/releases/latest"
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    tag_name = data["tag_name"]
-                    print('最新版本：' + tag_name)
-                else:
-                    print('获取最新版本号失败')
-    except aiohttp.ClientError as e:
-        print(f'最新版本：你网络不行啊老弟，都连不上github，怎么获取最新版本号')
-
-
-
-
 async def main():  # 打开并读取配置文件，主程序
-    os.system('cls' if os.name == 'nt' else 'clear')    #清空屏幕
-    await print_message('**********autojdck自动登陆京东获取ck程序**********')
-    await print_message('注：账户密码已从青龙变量迁移到jdck.ini文件中，在配置文件中进行账密设置')
-    await print_message('脚本需要青龙应用权限——环境变量跟脚本管理')
-    await print_message('项目地址：https://github.com/dsmggm/svjdck')
+    ##os.system('cls' if os.name == 'nt' else 'clear')    #清空屏幕
     await print_message('当前版本：jdck20240418')
-    await get_latest_version()       #获取最新版本
+
     await ifconfigfile()    #检测配置文件并初始化
     chromium_path = await init_chrome()     #检测初始化chrome
     await logon_main(chromium_path)    #登录操作，写入ck到文件
     os.remove('image.png') if os.path.exists('image.png') else None     #删除缓存照片
     os.remove('template.png') if os.path.exists('template.png') else None     #删除缓存照片
-    await print_message('完成全部登录')
+
     await asyncio.sleep(10)  # 等待10秒，等待
+    await print_message('结束')
 
 asyncio.get_event_loop().run_until_complete(main())  #使用异步I/O循环运行main()函数，启动整个自动登录和滑块验证流程。
