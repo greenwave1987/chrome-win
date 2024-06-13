@@ -43,8 +43,8 @@ import logging
 from datetime import datetime
  
 # 获取当前时间并格式化为日志文件名的一部分
-now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-log_filename = f"{now}.log"
+now = datetime.now().strftime("%H-%M")
+log_filename = f"svjdck-{now}.log"
 
 
 # 创建一个handler，用于将日志输出到控制台
@@ -302,7 +302,7 @@ async def get_user_choice():            #短信验证选择
 
 
 async def validate_logon(usernum, passwd, notes, chromium_path):                                         #登录操作
-    logger.info(f"正在登录 {notes} {usernum} 的账号")
+    logger.info(f"正在登录 {notes} 的账号")
     browser = await launch({
         'executablePath': chromium_path,        #定义chromium路径
         'headless': WebDisplay,  # 设置为非无头模式，即可视化浏览器界面
@@ -406,7 +406,7 @@ async def SubmitCK(page, notes):  #提交ck
             pt_key = cookie['value']                             #把值设置到变量pt_key
         elif cookie['name'] == 'pt_pin':                             #找到pt_pin的值
             pt_pin = cookie['value']                             #把值设置到变量pt_pin
-    logger.info('{} 登录成功 pt_key={};pt_pin={};'.format(notes, pt_key, pt_pin))    # 打印 pt_key 和 pt_pin 值
+    logger.info('{} 登录成功 pt_key={};pt_pin={};'.format(notes, '***', pt_pin))    # 打印 pt_key 和 pt_pin 值
     #with open('jdck.log', 'a+', encoding='utf-8') as file:    #打开文件
         #content = '{}   {}   pt_key={};pt_pin={};\n'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), notes, pt_key, pt_pin)   # 构造要写入文件的字符串
         #file.write(content)  # 写入文件
