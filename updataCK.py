@@ -90,6 +90,7 @@ async def initql(qlinfo):        #初始化青龙并获取青龙的token
         raise SystemExit
 
 async def qlenvs(qlinfo):   #获取青龙全部jdck变量
+    jd_cookie_data={}
     try:
         async with aiohttp.ClientSession() as session:                              # 异步操作命令
             url = f"{qlinfo['ip']}/open/envs?searchValue="                   #设置设置连接
@@ -97,9 +98,12 @@ async def qlenvs(qlinfo):   #获取青龙全部jdck变量
             async with session.get(url, headers=headers) as response:                              #获取变量请求
                 rjson = await response.json()                             #解析返回的json数据
                 if rjson['code'] == 200:                                #如果返回code200,根据青龙api文档
-                    jd_cookie_data = [env for env in rjson['data'] if env.get('name') == 'JD_COOKIE']            #获取全部jd的变量
-                    global notess      #把备注设置为全部变量
-                    notess = [env['remarks'] for env in rjson['data'] if env.get('name') == 'JD_COOKIE' and env.get('status') == 0]             #找到所有name为JD_COOKIE，status为0的字典列表，然后把remarks的值放进notess
+                    for env in rjson['data']:
+                        if env.get('name') == 'JD_COOKIE':
+                            pin=get_pin(env["value"])
+                            jd_cookie_data[pin] = env
+                    ##jd_cookie_data = {env for env in rjson['data'] if env.get('name') == 'JD_COOKIE'}            #获取全部jd的变量
+
                     
                     return jd_cookie_data
                 else:
@@ -146,13 +150,15 @@ async def SubmitCK(qlinfo,ckinfo):  #提交ck
 
     text = f"共有{len(ckinfo)} 个CK。\n" 
     text += f"{qlinfo['ip']}有{len(envs)} 个账号：\n" 
-    ##for pin in qlinfo['pin_list']:
-    for env in envs:
+    for pin in qlinfo['pin_list']:
+    ##for env in envs:
         found_ddhhs = False                             #初始化循环变量，用于后面找不到变量的解决方式
-        pin=get_pin(env["value"])
-        if pin in qlinfo['pin_list']:     #在所有变量值中找remarks，找到执行下面的更新ck
+        ##pin=get_pin(env["value"])
+        ##if pin in qlinfo['pin_list']:     #在所有变量值中找remarks，找到执行下面的更新ck
         ##if pin in env["remarks"]:      #在所有变量值中找remarks，找到执行下面的更新ck
+        if envs.get(pin) :
             found_ddhhs = True                             #把变量设为True，停下循环
+            env=envs.get(pin)
             if env['status']!=0:
                 envid = env["id"]                             #把找到的id设为envid的变量值
                 remarks = env["remarks"]                             #同上
@@ -204,12 +210,11 @@ async def SubmitCK(qlinfo,ckinfo):  #提交ck
                     if rjson['code'] == 200:
                         print(f"新建{pin}环境变量成功")
                         text += f"新建{pin}环境变量成功\n"
-                        return True
+
                     else:
                         print(f"新建{pin}环境变量失败：{rjson['message']}")
                         text += f"新建{pin}环境变量失败：{rjson['message']}\n"
-                        return False
-    
+
     send('自动更新CK',text)
 
 
@@ -224,10 +229,10 @@ async def main():  # 打开并读取配置文件，主程序
     ##print(qlinfo)
 
     for info in qlinfo:                              #找所有网页所有的cookie数据
-        print(f"查验{info}环境变量：")  
+        print(f"\n查验{info}环境变量：")  
         await logon_main(qlinfo[info],ckinfo)    #登录操作，写入ck到文件
 
-    await print_message('完成全部更新')
+    await print_message('\n完成全部更新')
     await asyncio.sleep(10)  # 等待10秒，等待
 
 asyncio.get_event_loop().run_until_complete(main())  #使用异步I/O循环运行main()函数，启动整个自动登录和滑块验证流程。
